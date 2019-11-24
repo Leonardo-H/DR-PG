@@ -6,7 +6,7 @@ STEPSIZE = {
 
 # Fixed.
 ranges_common = [
-    [['general', 'seed'], [x * 100 for x in range(8)]],
+    [['general', 'seed'], [x * 10000 + 6000 for x in range(20)]],
     [['experimenter', 'pretrain_kwargs', 'rollout_kwargs', 'min_n_samples'], [5000]],
     [['experimenter', 'pretrain_kwargs', 'pretrain'], [True]],
     [['experimenter', 'pretrain_kwargs', 'n_vf_updates'], [1]],
@@ -29,10 +29,11 @@ ranges_option = [
     [['advantage_estimator', 'data_aggregation'], [False]],
     [['advantage_estimator', 'max_n_rollouts'], [30]],
     [['advantage_estimator', 'vfn_params', 'fun_kwargs', 'n_epochs'], [500]],
-    [['algorithm', 'rollout_kwargs', 'min_n_samples'], [100000]],
+    [['algorithm', 'rollout_kwargs', 'min_n_samples'], [5000]],
+    [['algorithm', 'rollout_kwargs', 'max_n_rollouts'],[50]],
     [['oracle', 'or_kwargs', 'n_ac_samples'], [1000]],
     [['oracle', 'or_kwargs', 'switch_at_itr'], [None]],
-    [['oracle', 'or_kwargs', 'cv_onestep_weighting'], [False]],    
+    [['oracle', 'or_kwargs', 'cv_onestep_weighting'], [False]],
 ]
 
 ranges_option_cv = ranges_option +[
@@ -40,8 +41,9 @@ ranges_option_cv = ranges_option +[
     [['algorithm', 'train_vf_with_sim'], [True]],
     [['oracle', 'env_type'], ['dyn']],  # env for model, dyn
 ]
-    
+
 nros = 5
+
 
 ranges_sigmas = ranges_option + [
     [['oracle', 'or_kwargs', 'cv_type'], ['state']],
@@ -57,38 +59,51 @@ ranges_sigmas = ranges_option + [
 ]
 
 ranges_upper = ranges_option + [
-    [['algorithm', 'train_vf_with_sim'], [False]],    
     [['experimenter', 'rollout_kwargs', 'min_n_samples'], [100000]],
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [None]],
     [['oracle', 'or_kwargs', 'cv_type'], ['state']],
 ]
 
-ranges_nocv = ranges_option + [
+ranges_nocv = ranges_option_cv + [
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],
     [['oracle', 'or_kwargs', 'cv_type'], ['nocv']],
+    [['oracle', 'or_cls', ], ['tfDoublyRobustPG']],
+    [['cv_type_name'], ['nocv']],
 ]
 
 ranges_st = ranges_option_cv + [
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],
     [['oracle', 'or_kwargs', 'cv_type'], ['state']],
-    
+    [['oracle', 'or_cls', ], ['tfDoublyRobustPG']],
+    [['cv_type_name'], ['state']],
 ]
 
 ranges_sa = ranges_option_cv + [
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],
     [['oracle', 'or_kwargs', 'cv_type'], ['new']],
+    [['oracle', 'or_cls', ], ['tfDoublyRobustPG']],
     [['oracle', 'or_kwargs', 'stop_cv_step'], [1]],
+    [['cv_type_name'], ['sa']],
 ]
 
-
-ranges_new = ranges_option_cv + [
+ranges_traj = ranges_option_cv + [
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],
     [['oracle', 'or_kwargs', 'cv_type'], ['new']],
     [['oracle', 'or_kwargs', 'stop_cv_step'], [None]],
-    [['oracle', 'or_kwargs', 'theta'], [0.9, 1.0]],
-    
+    [['oracle', 'or_cls', ], ['tfDoublyRobustPG']],
+    [['oracle', 'or_kwargs', 'theta'], [0.9]],
+    [['cv_type_name'], ['trajwise']],
 ]
 
+ranges_dr = ranges_option_cv + [
+    [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],
+    [['oracle', 'or_kwargs', 'cv_type'], ['dr']],
+    [['oracle', 'or_kwargs', 'stop_cv_step'], [None]],
+    [['oracle', 'or_kwargs', 'theta'], [0.9]],
+    [['oracle', 'or_kwargs', 'gamma2'], [0.9]],
+    [['oracle', 'or_cls', ], ['tfDoublyRobustPG']],
+    [['cv_type_name'], ['dr']],
+]
 
 ranges_sa_quad = ranges_option_cv + [
     [['experimenter', 'rollout_kwargs', 'max_n_rollouts'], [nros]],

@@ -2,19 +2,13 @@ import argparse
 import multiprocessing
 from multiprocessing import Pool
 # from multiprocessing.pool import ThreadPool as Pool
+
 from scripts import configs_cv as C
 from scripts import ranges_cv as R
-from scripts.rl_exp_cv import main as main_func
+from scripts.rl_exp_cv_opt import main as main_func
 import itertools
 import copy
 from rl.tools.utils.misc_utils import zipsame
-
-
-# Limit the number threads used by tensorflow
-import tensorflow as tf
-num_threads=8
-tf.config.threading.set_inter_op_parallelism_threads(num_threads)
-tf.config.threading.set_intra_op_parallelism_threads(num_threads)
 
 
 def func(tp):
@@ -38,13 +32,14 @@ def get_valcombs_and_keys(ranges):
     return combs, keys
 
 
-def main(env, configs_name, range_names, base_algorithms, n_processes):
+def main(env, configs_name, range_names, base_algorithms, n_processes, args=None):
     # Set to the number of workers you want (it defaults to the cpu count of your machine)
     if n_processes == -1:
         n_processes = None
     print('# of CPU (threads): {}'.format(multiprocessing.cpu_count()))
     configs = getattr(C, 'configs_' + configs_name)
     tps = []
+    assert len(range_names) == 1
     for range_name in range_names:
         ranges = R.get_ranges(env, range_name, base_algorithms)
         combs, keys = get_valcombs_and_keys(ranges)
@@ -69,11 +64,16 @@ def main(env, configs_name, range_names, base_algorithms, n_processes):
                         value = 'F'
                     value_strs.append(str(value).split('/')[0])  # in case of experts/cartpole/final.ckpt....
             tp['general']['exp_name'] = '-'.join(value_strs)
+            tp['experimenter']['data_gen_type'] = args.self
             tps.append(tp)
-
+    '''
+    assert len(tps) == 1
+    tps[0]['general']['seed'] = args.seed
+    main_func(tps[0])
+    '''
     with Pool(processes=n_processes, maxtasksperchild=1) as p:  # None for using all the cpus available
         p.map(main_func, tps, chunksize=1)
-        # p.map(func, tps, chunksize=1)
+        p.map(func, tps, chunksize=1)
 
 
 if __name__ == '__main__':
@@ -82,8 +82,13 @@ if __name__ == '__main__':
     parser.add_argument('env')
     parser.add_argument('configs_name')
     parser.add_argument('-r', '--range_names', nargs='+')
-    parser.add_argument('-a', '--base_algorithms', nargs='+')
+    parser.add_argument('-a', '--base_algorithms', nargs='+', default=['rnatgrad'])
     parser.add_argument('--n_processes', type=int, default=-1)
+    parser.add_argument('--type', type=str, default='train')
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--self', type=int, default=0)
     args = parser.parse_args()
 
-    main(args.env, args.configs_name, args.range_names, args.base_algorithms, args.n_processes)
+    main(args.env, args.configs_name, 
+            args.range_names, args.base_algorithms, 
+            args.n_processes, args)

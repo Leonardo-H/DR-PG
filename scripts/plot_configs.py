@@ -63,7 +63,7 @@ class Configs(object):
     def __init__(self, style=None, colormap='tab10'):
         if not style:
             self.configs = None
-            self.colors = iter(cm.get_cmap(colormap).colors)
+            self.colors = iter(cm.get_cmap(colormap).colors * 100)
         else:
             self.configs = globals()[style + '_configs']
             for exp_name in self.configs['order']:

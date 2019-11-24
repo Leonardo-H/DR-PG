@@ -73,50 +73,50 @@ def create_policy(env, seed, c, name='learner_policy'):
     return policy
 
 
-def create_advantage_estimator(policy, adv_configs, name='value_function_approximator'):
+def create_advantage_estimator(policy, seed, adv_configs, name='value_function_approximator'):
     adv_configs = copy.deepcopy(adv_configs)
     # create the value function SupervisedLearner
     c = adv_configs['vfn_params']
     build_nor = Nor.create_build_nor_from_str(c['nor_cls'], c['nor_kwargs'])
     vfn_cls = getattr(Sup, c['fun_class'])
-    vfn = vfn_cls(policy.ob_dim, 1, name=name, build_nor=build_nor, **c['fun_kwargs'])
+    vfn = vfn_cls(policy.ob_dim, 1, name=name, seed=seed, build_nor=build_nor, **c['fun_kwargs'])
     # create the adv object
     adv_configs.pop('vfn_params')
     adv_configs['vfn'] = vfn
+
     ae = AdvantageEstimator(policy, **adv_configs)
     return ae
 
 
 def create_cv_oracle(policy, ae, c, env, seed):
     nor = Nor.NormalizerStd(None, **c['nor_kwargs'])
-    if c['or_cls'] == 'tfPolicyGradient':
-        oracle = Or.tfPolicyGradient(policy, ae, nor, **c['or_kwargs'])
-    elif c['or_cls'] == 'tfPolicyGradientSimpleCV':
-        # uses the true env for variance computation.
-        var_env = create_env_from_env(env, 'true', seed*2)
-        sim_env = create_env_from_env(env, c['env_type'], seed, c['dyn'], c['rw'])
-        oracle = Or.tfPolicyGradientSimpleCV(policy, ae, nor,
-                                             sim_env=sim_env, var_env=var_env,
-                                             **c['or_kwargs'])
-    else:
-        raise ValueError('Unknown or_cls: {}'.format(c['or_cls']))
+
+    var_env = create_env_from_env(env, 'true', seed*2)
+    sim_env = create_env_from_env(env, c['env_type'], seed, c['dyn'], c['rw'])
+    oracle = Or.tfDoublyRobustPG(policy, ae, nor,
+                                            sim_env=sim_env, var_env=var_env,
+                                            **c['or_kwargs'])
     return oracle
 
-
-def create_experimenter(alg, env, ro_kwargs):
+def create_experimenter_for_opt_exp(alg, env, ro_kwargs):
     # For interacting with the true env.
     gen_ro = functools.partial(generate_rollout, env=env, **ro_kwargs)
     return Exp.Experimenter(env, alg, gen_ro)
 
+def create_experimenter_for_var_exp(alg, env, ro_kwargs):
+    # For interacting with the true env.
+    gen_ro = functools.partial(generate_rollout, env=env, **ro_kwargs)
+    return Exp.Experimenter_for_Var_Exp(env, alg, gen_ro)
 
+# dc is short for dynamic config (the transition model)
+# rc is short for reward config (the reward model)
 def create_env_from_env(env, env_type, seed, dc=None, rc=None):
-    # dc: dynamics config.
     if env_type == 'true':
-        # pdb.set_trace()
         new_env = Env.create_env(env.env.spec.id, seed)
         new_env._max_episode_steps = env._max_episode_steps  # set the horizon
         return new_env
     elif isinstance(env_type, float) and env_type >= 0.0 and env_type < 1.0:
+        # the larger inaccuracy is, the larger randomness will be added. 
         return Env.create_sim_env(env, seed, inaccuracy=env_type)
     elif env_type == 'dyn':
         assert dc is not None
@@ -147,25 +147,36 @@ def _create_base_alg(policy, c):
     return base_alg
 
 
-def create_cv_algorithm(policy, oracle, env, seed, c):
+def create_cv_algorithm_for_opt_exp(policy, oracle, env, seed, c):
     base_alg = _create_base_alg(policy, c)
     online_optimizer = OO.BasicOnlineOptimizer(policy, base_alg, p=c['learning_rate']['p'],
-                                               damping=c['damping'])
-    if c['alg_cls'] == 'SimpleRL':
+                                               damping=c['damping'])        
+    if c['train_vf_with_sim']:
         sim_env = create_env_from_env(env, c['env_type'], seed)
-        gen_ro = functools.partial(generate_rollout, env=sim_env, **c['rollout_kwargs'])
-        alg = Alg.SimpleRL(online_optimizer, oracle, policy, gen_sim_ro=gen_ro, **c['alg_kwargs'])
-    elif c['alg_cls'] == 'SimpleCVRL':
-        if c['train_vf_with_sim']:
-            sim_env = create_env_from_env(env, c['env_type'], seed)
-            gen_ro = functools.partial(generate_rollout,
-                                       env=sim_env, pi=policy.pi, logp=None,
-                                       **c['rollout_kwargs'])
-        else:
-            gen_ro = None
-        alg = Alg.SimpleCVRL(online_optimizer, oracle, policy, gen_sim_ro=gen_ro, **c['alg_kwargs'])
+        gen_ro = functools.partial(generate_rollout,
+                                    env=sim_env, pi=policy.pi, logp=None,
+                                    **c['rollout_kwargs'])
     else:
-        raise ValueError('Unknown alg_cls: {}'.format(c['alg_cls']))
+        gen_ro = None
+    alg = Alg.SimpleCVRL(online_optimizer, oracle, policy, gen_sim_ro=gen_ro, **c['alg_kwargs'])
+
     return alg
 
 
+def create_cv_algorithm_for_var_exp(policy, oracle, env, seed, exp_type, c):
+    base_alg = _create_base_alg(policy, c)
+    online_optimizer = OO.BasicOnlineOptimizer(policy, base_alg, p=c['learning_rate']['p'],
+                                               damping=c['damping'])            
+    if exp_type == 'cal-var' or exp_type == 'est-mean' or exp_type == 'gen-ro':
+        alg = Alg.ComputeGrad(None, oracle, policy, gen_sim_ro=None, **c['alg_kwargs'])
+    else:
+        if c['train_vf_with_sim']:
+            sim_env = create_env_from_env(env, c['env_type'], seed)
+            gen_ro = functools.partial(generate_rollout,
+                                        env=sim_env, pi=policy.pi, logp=None,
+                                        **c['rollout_kwargs'])
+        else:
+            gen_ro = None
+        alg = Alg.SimpleCVRL(online_optimizer, oracle, policy, gen_sim_ro=gen_ro, **c['alg_kwargs'])
+
+    return alg

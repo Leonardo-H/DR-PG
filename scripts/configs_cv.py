@@ -1,6 +1,7 @@
 import copy
 from rl.tools.utils.misc_utils import dict_update
 
+
 configs = {
     'general': {
         'top_log_dir': 'log',
@@ -24,10 +25,9 @@ configs = {
                 'max_n_rollouts': None,
                 'max_rollout_len': None,
             },
-
         },
         'run_alg_kwargs': {
-            'n_itrs': 100,
+            'n_itrs': 50,
             'save_policy': False,
             'save_freq': None,
             # used when pretrain is True. if all None, will be set to the same as rollout_kwargs.
@@ -74,10 +74,9 @@ configs = {
         },
     },
     'oracle': {
-        # 'or_cls': 'tfPolicyGradient',  # 'tfPolicyGradient', 'tfPolicyGradientWithCV'
-        'or_cls': 'tfPolicyGradientSimpleCV',
+        'or_cls': 'tfDoublyRobustPG',
         # used for tfPolicyGradientWithCV, and tfPolicyGradientSimpleCV, 'true', 'dyn' for learning dynamics, or 'dyn-rw' for learning both dynamics and reward function.
-        'env_type': 0.0,
+        'env_type': 'dyn-rw',
         # For tfPolicyGradientSimpleCV, since just need to predict next state, regressor is enough
         'or_kwargs': {
             'cv_type': 'nocv',   # for SimpleCVRL, 'nocv', 'state', 'new'
@@ -85,6 +84,7 @@ configs = {
             'cv_onestep_weighting': False,
             'stop_cv_step': 1,  # for cv_type 'new'
             'theta': 1.0,  # for cv_type 'new'
+            'gamma2':0.9,
             'quad_style': 'diff',  # how the quadratic approximation is constructed
             'dyn_update_weights_type': 'one',  # for tfPolicyGradientSimpleCV
             'rw_update_weights_type': 'one',  # for tfPolicyGradientSimpleCV
@@ -127,7 +127,6 @@ configs = {
         'dyn': {
             'nor_cls': 'tfNormalizerMax',
             'name': 'or_dyn',
-            'pred_residue': True,  # XXX predict residue!!!
             'nor_kwargs': {
                 'rate': 0.0,
                 'momentum': None,
@@ -135,6 +134,7 @@ configs = {
             },
             'fun_cls': 'tfMLPSupervisedLearner',
             'fun_kwargs': {
+                'pred_residue': True,  # XXX predict residue!!!
                 'use_aggregation': True,
                 'max_n_samples': 200000,
                 'learning_rate': 1e-3,
@@ -146,7 +146,6 @@ configs = {
                 'n_layers': 2,
             },
         },
-
     },
     'policy': {
         'restore_path': None,
@@ -198,6 +197,9 @@ configs = {
                 'n_layers': 2,
             },
         },
+    },
+    'cv_type_name':{
+        'dr',
     },
 }
 
@@ -273,7 +275,7 @@ t = {
             'update_pol_nor': True,
         },
         'run_alg_kwargs': {
-            'n_itrs': 100,
+            'n_itrs': 50,
         },
     },
     'advantage_estimator': {
@@ -300,14 +302,15 @@ t = {
         },
     },
     'oracle': {
-        'or_cls': 'tfPolicyGradientSimpleCV',
-        'env_type': 'true',
+        'or_cls': 'tfDoublyRobustPG',
+        'env_type': 'dyn',
         # 'env_type': 'dyn',  # learn both dyn and rw
         'or_kwargs': {
             'n_ac_samples': 200,
-            'cv_type': 'new',  # 'state', 'nocv', 'new', 'quad'
+            'cv_type': 'dr',  # 'state', 'nocv', 'new', 'quad', 'dr'
             'stop_cv_step': None,  # for cv_type 'new'
             'theta': 0.98,  # for cv_type 'new'
+            'gamma2':0.9,
             'quad_style': 'next-gn',
             'switch_at_itr': None,
             'cv_onestep_weighting': True,
@@ -320,8 +323,10 @@ t = {
     },
     'policy': {
         'nor_kwargs': {'clip_thre': 5.0},
-    }
+    },
+    'cv_type_name':{
+        'dr',
+    },
 }
 configs_newcvtest = copy.deepcopy(configs)
 dict_update(configs_newcvtest, t)
-

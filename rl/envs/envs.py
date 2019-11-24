@@ -92,12 +92,11 @@ class EnvWithModel(ABC):
 
     def _advance(self, a):
         if self._predict:
-            return self._predict(np.hstack([self._state, a]))
+            return self._predict(np.hstack([self._state, a]).reshape([-1,5])).reshape([-1])
         else:
             return self._default_advance(a)
 
     def step(self, a):
-
         # Advance.
         prev_state = self._state  # maybe used by reward computation
         # Action clipping is part of the dynamics.
@@ -107,13 +106,12 @@ class EnvWithModel(ABC):
             raise ValueError(message)
 
         self._state = self._advance(a)
-
         self._i_step += 1
         self._update_simulator_state()
 
         # Reward.
         # XXX Should be the reward associated with the state before step.
-        reward = self._reward(prev_state, a)
+        reward = 1.0
 
         # Is done.
         done = self._is_done or self._i_step >= self._horizon
@@ -241,10 +239,19 @@ class DartEnvWithModel(EnvWithModel):
         self.set_state(self._sample_initial_state())
 
 
+
 class Cartpole(DartEnvWithModel):
-    def __init__(self, env, predict=None, rw_fun=None, model_inacc=None, seed=None):
+    def __init__(self, env, predict=None, rw_fun=None, model_inacc=None, seed=None, predict_model=None, rew_model=None):
         model_path = 'cartpole.skel'
         super().__init__(env, model_path, predict, rw_fun, model_inacc, seed)
+        self.predict_model = predict_model
+        self.rew_model = rew_model
+
+    def get_predict_model(self):
+        return self.predict_model
+    
+    def get_rew_model(self):
+        return self.rew_model
 
     @DartEnvWithModel._require_robot_x_update_to_date()
     def _default_reward(self, prev_state, a):
@@ -269,6 +276,17 @@ class Cartpole(DartEnvWithModel):
         finite_ok = np.isfinite(sts).all(axis=1)
 
         return np.logical_not(np.logical_and.reduce([sts_ok, finite_ok]))
+
+
+    '''
+    Receive a batch of (s,a) pairs,
+    return the inference next states
+    '''
+    def _batch_dynamic(self, obs, acts):
+        assert len(obs.shape) == len(acts.shape)
+
+        inputs = np.concatenate([obs, acts], axis=1)
+        self.predict_model._predict(inputs)
 
     @property
     @DartEnvWithModel._require_robot_x_update_to_date()

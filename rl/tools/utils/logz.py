@@ -150,3 +150,6 @@ def dump_tabular():
         LOG.output_file.flush()
     LOG.log_current_row.clear()
     LOG.first_row = False
+
+def get_val_from_LOG(key):
+    return LOG.log_current_row[key]

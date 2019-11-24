@@ -65,9 +65,10 @@ ENVID2MODELENV = {
 def create_sim_env(env, seed, inaccuracy=None, dc=None, rc=None):
     """ Create an EnvWithModel object as a model of env."""
     # dc: config for dynamics.
-    def create_predict(config, out=None):
+    def create_predict(config, out=None, seed=None):
         # Create predict of a supervised learner.
         # out_dim defaulted to be st_dim
+        assert seed is not None
         st = env.reset()
         st_dim, ac_dim = len(st), env.action_space.shape[0]
         cls = getattr(Sup, config['fun_cls'])
@@ -80,13 +81,17 @@ def create_sim_env(env, seed, inaccuracy=None, dc=None, rc=None):
             raise ValueError('Invalid out: {}'.format(out))
 
         # XXX learn residue for dynamics!
-        svl = cls(st_dim + ac_dim, out_dim, name=config['name'],
-                  build_nor=build_nor, **config['fun_kwargs'])
-        return svl.predict
-
-    predict = create_predict(dc, 'dyn') if dc is not None else None
-    rw_fun = create_predict(rc, 'rw') if rc is not None else None
+        svl = cls(st_dim + ac_dim, out_dim, 
+                  name=config['name'],
+                  seed=seed, build_nor=build_nor, 
+                  **config['fun_kwargs'])
+        return svl.predict, svl
+    predict, predict_model = create_predict(dc, 'dyn', seed=seed+5) if dc is not None else (None, None)
+    rw_fun, rw_model = None, None
     envid = env.env.spec.id
+    
     sim_env = ENVID2MODELENV[envid](env, predict=predict, rw_fun=rw_fun,
-                                    model_inacc=inaccuracy, seed=seed)
+                                model_inacc=inaccuracy, seed=seed, 
+                                predict_model=predict_model, rew_model=rw_model)
+                                
     return sim_env

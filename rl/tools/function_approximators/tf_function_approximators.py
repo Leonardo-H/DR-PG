@@ -29,7 +29,7 @@ class tfFunctionApproximator(tfObject, FunctionApproximator):
         # whether to predict residue
         self._pred_residue = pred_residue
         if self._pred_residue:
-            assert x_dim == y_dim
+            assert x_dim >= y_dim
 
         # just an abstract interface
         FunctionApproximator.__init__(self, x_dim, y_dim, name=name, seed=seed)
@@ -59,10 +59,10 @@ class tfFunctionApproximator(tfObject, FunctionApproximator):
         self.ph_x = tf.placeholder(shape=[None, self.x_dim], name="input", dtype=tf_float)
         # build the normalizer for whitening
         self.ts_nor_x = self._nor.build_nor_ops(self.ph_x)
-        # build parameterized function approximator
+        
         self.ts_yh = self._build_func_apprx(self.ts_nor_x, **kwargs)
         if self._pred_residue:
-            self.ts_yh = self.ph_x + self.ts_yh
+            self.ts_yh = self.ph_x[:, :self.y_dim] + self.ts_yh
 
         self._yh = U.function([self.ph_x], self.ts_yh)
 
@@ -175,3 +175,15 @@ class tfMLPFunctionApproximator(tfFunctionApproximator):
 
     def _build_func_apprx(self, ts_nor_x):
         return U.build_multilayer_perceptron('yhat', ts_nor_x, self.y_dim, self._n_layers, self._size, self._activation, output_init_std=0.01)
+
+    def _rebuild_func_apprx_with_raw(self, x):
+        ts_nor_x = self._nor.build_nor_ops(x)
+        with tf.variable_scope(self._tfObject__name):
+            assert tf.get_variable_scope().name == self._tfObject__scope
+            return U.build_multilayer_perceptron('yhat', ts_nor_x, self.y_dim, self._n_layers, self._size, self._activation, output_init_std=0.01, reuse=True)
+
+    def _rebuild_func_apprx(self, x):
+        ts_nor_x = x
+        with tf.variable_scope(self._tfObject__name):
+            assert tf.get_variable_scope().name == self._tfObject__scope
+            return U.build_multilayer_perceptron('yhat', ts_nor_x, self.y_dim, self._n_layers, self._size, self._activation, output_init_std=0.01, reuse=True)

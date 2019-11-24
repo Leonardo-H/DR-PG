@@ -218,6 +218,10 @@ def _tfGaussianPolicyDecorator(cls):
         def std(self, val):
             self._set_logstd(np.log(val))
 
+        def _rebuild_cls_func_apprx_with_raw(self, x, add=None):
+            ts_nor_x = self._nor.build_nor_ops(x)
+            return cls._rebuild_func_apprx(self, ts_nor_x)
+
         def stop_std_grad(self, cond=True):
             self._set_stop_std_grad(cond)
 

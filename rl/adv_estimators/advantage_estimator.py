@@ -1,6 +1,7 @@
 import pdb
 import numpy as np
 import copy
+import os
 from .performance_estimate import PerformanceEstimate as PE
 from rl.policies import Policy
 from rl.tools.supervised_learners import SupervisedLearner
@@ -136,3 +137,14 @@ class AdvantageEstimator(object):
             return [np.squeeze(self._vfn.predict(rollout.obs)) for rollout in ro.rollouts]
         else:
             return [np.zeros(rollout.obs.shape[0]) for rollout in ro.rollouts]
+
+    def save_vfn(self, log_dir, name):
+        self._vfn.save(path=os.path.join(log_dir, name + '_pol.ckpt'))
+        self._vfn._nor._tf_params.save(path=os.path.join(log_dir, name + '_polnor.ckpt'))
+
+    def restore_vfn(self, prefix):
+        self._vfn.restore(prefix + '_pol.ckpt')
+        self._vfn._nor._tf_params.restore(prefix + '_polnor.ckpt')
+
+    def grad_theta_q(self, obs, randomness):
+        return self.grad_q_func(obs, randomness)

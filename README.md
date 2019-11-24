@@ -1,79 +1,109 @@
-# rlfamily_cv #
+# Doubly-Robust Policy Gradient 
 
-Code for reproducing the results in the paper: Trajectory-wise Control Variates for Variance Reduction in Policy Gradient Methods. Ching-An Cheng\*, Xinyan Yan\*,
-Byron Boots. CoRL 2019. (\*: equal contribution).
+Code for Doubly-Robust Policy Gradient (DR-PG) Algorithm in <https://arxiv.org/abs/1910.09066>. If you find DR-PG helpful, please cite as follow:
 
-
-### Installation ###
-Tested in Ubuntu 16.04 and Ubuntu 18.04 with python 3.
-
-#### Install repo and most of the requirements ####
-Prepare python3 virtual environment:
 ```
-sudo apt-get install python3-pip
-sudo pip3 install virtualenv
-virtualenv --system-site-packages -p python3 ./venv
-source ./venv/bin/activate
-pip install --upgrade -r requirements.txt
-```
-Install this repo and requirements:
-```
-git clone https://github.com/gtrll/rlfamily_cv.git
-git checkout develop
-pip install --upgrade -r requirements.txt
-```
-You may need to run
-```
-export PYTHONPATH="{PYTHONPATH}:[the parent folder of this repo]"
+@article{huang2019importance,
+  title={From Importance Sampling to Doubly Robust Policy Gradient},
+  author={Huang, Jiawei and Jiang, Nan},
+  journal={arXiv preprint arXiv:1910.09066},
+  year={2019}
+}
 ```
 
-#### Install Dart ####
-The Ubuntu package is too new for PyDart2, so we install it manually. 
+Our code is based on and reuses the code from the following paper: 
 
-First install the requirements following the instructions of Install DART from source at https://dartsim.github.io/install_dart_on_ubuntu.html. We compile and install it manually, because PyDart2 only supports Dart before 6.8.
-```
-git clone git://github.com/dartsim/dart.git
-cd dart
-git checkout tags/v6.7.2
-mkdir build
-cd build
-cmake ..
-make -j4
-sudo make install
-```
-Someitmes you may need to link library manually.
-```
-echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib:/usr/lib:/usr/local/lib" >> ~/.bashrc
-```
+> Trajectory-wise Control Variates for Variance Reduction in Policy Gradient Methods.
+>
+> Ching-An Cheng\*, Xinyan Yan\*, Byron Boots. CoRL 2019. (*: equal contribution).
 
-#### Install PyDart2 ####
-Installing PyDart2 through pip does not work, so we install it manually.
-```
-git clone https://github.com/sehoonha/pydart2.git
-cd pydart2
-python setup.py build build_ext
-python setup.py develop
-```
+Their original code can be found in https://github.com/gtrll/rlfamily_cv.
 
 
-#### Install DartEnv ####
-This is a slightly modified version of [DartEnv](https://github.com/DartEnv/dart-env). The changes include:
 
-* Make nodisplay as default.
-* Add a state property for convenience.
-* Added arguments for physical parameter perturbation. 
+## Installation
 
-To install it, 
-```
-git clone https://github.com/gtrll/dartenv.git
-cd dartenv
-git checkout cv
-pip install -e .[dart]
+Please follow the instruction in `Installation.md` to install the environments.
+
+
+
+## Running Experiments
+
+### Exp 1: Variance_Reduction
+
+```shell
+# Train Models
+python var_exp.py cp cp --type train -r dr
+
+# Generate Rollouts
+python var_exp.py cp cp --type gen-ro --show-freq 5
+
+# Calculate Gradients for Each Rollouts, 
+# The choices of 'your_cv_type' include:
+#		(1) nocv:	Standard PG
+#		(2) st	:	State-Dependent Baseline
+#		(3) sa	:	State-Action-Dependent Baseline
+#		(4) traj:	Trajectory-wise Baseline
+#		(5) dr	:	Doubly-Robust PG
+python var_exp.py cp cp --type cal-var --show-freq 5 -r your_cv_type
+
+# Calculate Estimated Mean via State-Dependent Baseline
+python var_exp.py cp cp --type est-mean --show-freq 5
 ```
 
-#### Run experiments ####
-Firstly, go to the main folder.
-Run the experiments in the paper for the CartPole task. 
+Plot results
+
+```shell
+python scripts/var_exp_plot.py
 ```
-python batch_run.py cp cp -r upper nocv st sa new -a rnatgrad
+
+By default, we omit the standard PG while ploting. If you want to compare togther with it, use the following command.
+
+```shell
+python scripts/var_exp_plot.py --show-nocv
 ```
+
+
+
+### Exp 2: Optimization
+
+Set your own seeds in `./Optimization/scripts/ranges_cv.py`, Line 9. The default setting is:
+
+```
+['general', 'seed'], [x * 10000 + 5000 for x in range(10)]
+```
+
+Run the experiments
+
+```sh
+# standard policy gradient
+python opt_exp.py cp cp -r nocv
+
+# state-dependent baseline
+python opt_exp.py cp cp -r st
+
+# state-action-dependent baseline
+python opt_exp.py cp cp -r sa
+
+# trajectory-wise control variate
+python opt_exp.py cp cp -r traj
+
+# doubly-robust policy gradient
+python opt_exp.py cp cp -r dr
+
+```
+
+Plot Curves with Error Bar
+
+```shell
+# Median over trials with different seeds
+python scripts/opt_exp_plot.py --logdir_parent ./log --value MeanSumOfRewards --curve median
+
+# Mean over trials with different seeds
+python scripts/opt_exp_plot.py --logdir_parent ./log --value MeanSumOfRewards --curve mean
+
+```
+
+## Contact
+
+If you have any questions about the code or paper, please feel free to [contact us](mailto:jiaweileonardo@outlook.com).

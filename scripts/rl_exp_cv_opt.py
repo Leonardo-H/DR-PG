@@ -37,8 +37,8 @@ def main(c):
 
     # Create objects for defining the algorithm
     policy = ps.create_policy(env, seed, c['policy'])
-    ae = ps.create_advantage_estimator(policy, c['advantage_estimator'])
-    oracle = ps.create_cv_oracle(policy, ae, c['oracle'], env, seed+1)
+    ae = ps.create_advantage_estimator(policy, seed+1, c['advantage_estimator'])
+    oracle = ps.create_cv_oracle(policy, ae, c['oracle'], env, seed+2)
 
     # Enter session.
     U.single_threaded_session().__enter__()
@@ -51,10 +51,10 @@ def main(c):
 
     # Create algorithm after initializing tensors, since it needs to read the
     # initial value of the policy.
-    alg = ps.create_cv_algorithm(policy, oracle, env, seed+2, c['algorithm'])
+    alg = ps.create_cv_algorithm_for_opt_exp(policy, oracle, env, seed+3, c['algorithm'])
 
     # Let's do some experiments!
-    exp = ps.create_experimenter(alg, env, c['experimenter']['rollout_kwargs'])
+    exp = ps.create_experimenter_for_opt_exp(alg, env, c['experimenter']['rollout_kwargs'])
 
     def save_policy_fun(name):
         policy.save(path=os.path.join(log_dir, name + '_pol.ckpt'))

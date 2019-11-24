@@ -17,6 +17,9 @@ tf_int = tf.int32
 For compatibility with stop_gradient
 """
 
+def tf_flatten(variables):
+    return tf.concat([tf.reshape(var, [-1]) for var in variables], axis=0)
+
 
 def gradients(tensor, var_list):
     grads = tf.gradients(tensor, var_list)
@@ -363,9 +366,10 @@ def build_multilayer_perceptron(
         hid_layer_std=1.0,
         output_activation=None,
         output_init_std=1.0,
+        reuse=False,
 ):
 
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope, reuse=reuse):
         sy_y = sy_input
         for _ in range(n_layers):
             sy_y = tf.layers.dense(sy_y, size, activation=activation,
