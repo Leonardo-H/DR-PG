@@ -6,7 +6,7 @@ STEPSIZE = {
 
 # Fixed.
 ranges_common = [
-    [['general', 'seed'], [x * 10000 + 6000 for x in range(20)]],
+    [['general', 'seed'], [x * 10000 + 5000 for x in range(10)]],
     [['experimenter', 'pretrain_kwargs', 'rollout_kwargs', 'min_n_samples'], [5000]],
     [['experimenter', 'pretrain_kwargs', 'pretrain'], [True]],
     [['experimenter', 'pretrain_kwargs', 'n_vf_updates'], [1]],
